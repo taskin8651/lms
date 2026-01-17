@@ -22,9 +22,9 @@ class TestController extends Controller
     {
         $teacher = auth()->user()->teacher;
 
-        if ($batch->teacher_id !== $teacher->id) {
-            abort(403);
-        }
+             if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
         $tests = Test::where('batch_id', $batch->id)
             ->withCount('questions')
