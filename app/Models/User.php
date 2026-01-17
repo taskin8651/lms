@@ -107,4 +107,12 @@ public function student()
     return $this->hasOne(\App\Models\Student::class, 'user_id');
 }
 
+
+
+public function hasRole($role)
+{
+    return $this->roles()->where('title', $role)->exists();
+}
+
+
 }
