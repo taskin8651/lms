@@ -40,9 +40,9 @@ class TestController extends Controller
     {
         $teacher = auth()->user()->teacher;
 
-        if ($test->batch->teacher_id !== $teacher->id) {
-            abort(403);
-        }
+             if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
         $test->update([
             'is_published' => ! $test->is_published
@@ -131,9 +131,9 @@ class TestController extends Controller
     $teacher = auth()->user()->teacher;
 
     // 🔒 Security
-    if ($batch->teacher_id !== $teacher->id) {
-        abort(403);
-    }
+         if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
     $tests = Test::where('batch_id', $batch->id)
         ->withCount([
@@ -153,9 +153,9 @@ public function studentResults(Test $test)
     $teacher = auth()->user()->teacher;
 
     // 🔐 Security check
-    if ($test->batch->teacher_id !== $teacher->id) {
-        abort(403);
-    }
+         if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
     /**
      * Batch ke sab students lao
@@ -182,9 +182,9 @@ public function studentResultDetail(Test $test, BatchStudent $batchStudent)
     $teacher = auth()->user()->teacher;
 
     // 🔐 Security
-    if ($test->batch->teacher_id !== $teacher->id) {
-        abort(403);
-    }
+          if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
     // Ensure student belongs to same batch
     if ($batchStudent->batch_id !== $test->batch_id) {
@@ -211,9 +211,9 @@ public function attemptAnswers(TestAttempt $attempt)
     $teacher = auth()->user()->teacher;
 
     // 🔐 Security
-    if ($attempt->test->batch->teacher_id !== $teacher->id) {
-        abort(403);
-    }
+          if ((int)$batch->teacher_id !== (int)$teacher->id) {
+    abort(403);
+}
 
     $attempt->load([
         'test',
