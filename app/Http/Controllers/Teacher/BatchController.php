@@ -16,18 +16,18 @@ class BatchController extends Controller
     {
         $teacher = auth()->user()->teacher;
 
-        // Security check (extra safety)
-        if (!$teacher) {
-            abort(403, 'Teacher profile not found.');
+        // 🔐 Safety
+        if (! $teacher) {
+            abort(403);
         }
 
         $batches = Batch::with([
                 'class_level',
                 'subject',
             ])
-            ->withCount('students')          // 🔥 total students in batch
+            ->withCount('students') // total students
             ->where('teacher_id', $teacher->id)
-            ->orderBy('id', 'desc')
+            ->orderByDesc('id')
             ->get();
 
         return view('teacher.batches.index', compact('batches'));
@@ -36,33 +36,44 @@ class BatchController extends Controller
     /**
      * Show students of a specific batch
      */
-   public function students(Request $request, Batch $batch)
-{
-    $teacher = auth()->user()->teacher;
+    public function students(Request $request, Batch $batch)
+    {
+        $teacher = auth()->user()->teacher;
 
-    if ($batch->teacher_id !== $teacher->id) {
-        abort(403);
+        // 🔐 Security (SERVER SAFE)
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
+            abort(403);
+        }
+
+        $query = BatchStudent::with('student.user')
+            ->where('batch_id', $batch->id);
+
+        /* ================= FILTERS ================= */
+
+        // Status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Search by name / mobile
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->whereHas('student.user', function ($u) use ($request) {
+                        $u->where('name', 'like', '%' . $request->search . '%');
+                    })
+                  ->orWhereHas('student', function ($s) use ($request) {
+                        $s->where('mobile', 'like', '%' . $request->search . '%');
+                    });
+            });
+        }
+
+        $students = $query
+            ->orderBy('joining_date')
+            ->get();
+
+        return view(
+            'teacher.batches.students',
+            compact('batch', 'students')
+        );
     }
-
-    $query = BatchStudent::with(['student.user'])
-        ->where('batch_id', $batch->id);
-
-    // 🔍 Status filter
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
-    }
-
-    // 🔍 Search by name / mobile
-    if ($request->filled('search')) {
-        $query->whereHas('student.user', function ($q) use ($request) {
-            $q->where('name', 'like', '%' . $request->search . '%');
-        })->orWhereHas('student', function ($q) use ($request) {
-            $q->where('mobile', 'like', '%' . $request->search . '%');
-        });
-    }
-
-    $students = $query->orderBy('joining_date')->get();
-
-    return view('teacher.batches.students', compact('batch', 'students'));
-}
 }

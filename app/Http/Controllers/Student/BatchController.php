@@ -10,32 +10,35 @@ use Illuminate\Http\Request;
 class BatchController extends Controller
 {
     /**
-     * Student Dashboard → My Batches
+     * Student → My Batches
      */
     public function index()
     {
         $student = auth()->user()->student;
 
-        if (!$student) {
-            abort(403, 'Student profile not found');
+        // 🔐 Safety
+        if (! $student) {
+            abort(403);
         }
 
         // Student ke enrolled batch IDs
         $batchIds = BatchStudent::where('student_id', $student->id)
             ->pluck('batch_id');
 
-        // Active batches with relations
         $batches = Batch::with([
                 'teacher.user',
                 'subject',
-                'class_level'
+                'class_level',
             ])
             ->whereIn('id', $batchIds)
             ->where('status', 'active')
-            ->latest()
+            ->orderByDesc('id')
             ->get();
 
-        return view('student.batches.index', compact('batches'));
+        return view(
+            'student.batches.index',
+            compact('batches')
+        );
     }
 
     /**
@@ -45,24 +48,32 @@ class BatchController extends Controller
     {
         $student = auth()->user()->student;
 
-        if (!$student) {
-            abort(403, 'Student profile not found');
+        // 🔐 Safety
+        if (! $student) {
+            abort(403);
         }
 
-        // 🔒 Security: student enrolled hai ya nahi
-        $isEnrolled = BatchStudent::where('student_id', $student->id)
-            ->where('batch_id', $batch->id)
-            ->exists();
+        // 🔒 Ensure student is enrolled in this batch
+        $isEnrolled = BatchStudent::where([
+                'student_id' => $student->id,
+                'batch_id'   => $batch->id,
+            ])->exists();
 
-        if (!$isEnrolled) {
-            abort(403, 'You are not enrolled in this batch');
+        if (! $isEnrolled) {
+            abort(403);
         }
 
-        // (Future use ke liye ready)
-        // $attendanceCount = ...
-        // $testsCount = ...
-        // $liveClasses = ...
+        /**
+         * 🔮 Future Ready (jab chaaho enable kar sakte ho)
+         *
+         * $attendanceCount = ...
+         * $testCount = ...
+         * $liveClasses = ...
+         */
 
-        return view('student.batches.show', compact('batch'));
+        return view(
+            'student.batches.show',
+            compact('batch')
+        );
     }
 }

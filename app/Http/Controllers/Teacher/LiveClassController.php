@@ -9,44 +9,40 @@ use Illuminate\Http\Request;
 
 class LiveClassController extends Controller
 {
-    
-   public function index(Batch $batch)
-{
-    $teacher = auth()->user()->teacher;
+    /* ================= LIVE CLASS LIST ================= */
+    public function index(Batch $batch)
+    {
+        $teacher = auth()->user()->teacher;
 
-    if (!$teacher) {
-        abort(403, 'Teacher profile not found');
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
+            abort(403);
+        }
+
+        $liveClasses = LiveClass::where('batch_id', $batch->id)
+            ->orderByDesc('class_date')
+            ->get();
+
+        return view('teacher.live-classes.index', compact('batch', 'liveClasses'));
     }
 
-    if ((int)$batch->teacher_id !== (int)$teacher->id) {
-        abort(403, 'This batch is not assigned to you');
-    }
-
-    $liveClasses = LiveClass::where('batch_id', $batch->id)
-        ->orderBy('class_date', 'desc')
-        ->get();
-        
-
-    return view('teacher.live-classes.index', compact('batch', 'liveClasses'));
-}
-
-
+    /* ================= CREATE FORM ================= */
     public function create(Batch $batch)
     {
         $teacher = auth()->user()->teacher;
 
-        if ($batch->teacher_id !== $teacher->id) {
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
             abort(403);
         }
 
         return view('teacher.live-classes.create', compact('batch'));
     }
 
+    /* ================= STORE ================= */
     public function store(Request $request, Batch $batch)
     {
         $teacher = auth()->user()->teacher;
 
-        if ($batch->teacher_id !== $teacher->id) {
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
             abort(403);
         }
 
@@ -60,17 +56,17 @@ class LiveClassController extends Controller
         ]);
 
         LiveClass::create([
-            'batch_id'      => $batch->id,
-            'teacher_id'    => $teacher->id,
-            'class_date'    => $request->class_date,
-            'start_time'    => $request->start_time,
-            'end_time'      => $request->end_time,
-            'class_type'    => $request->class_type,
-            'topic'         => $request->topic,
-            'description'   => $request->description,
-            'meeting_link'  => $request->meeting_link,
-            'recording_link'=> $request->recording_link,
-            'status'        => 'active',
+            'batch_id'       => $batch->id,
+            'teacher_id'     => $teacher->id,
+            'class_date'     => $request->class_date,
+            'start_time'     => $request->start_time,
+            'end_time'       => $request->end_time,
+            'class_type'     => $request->class_type,
+            'topic'          => $request->topic,
+            'description'    => $request->description,
+            'meeting_link'   => $request->meeting_link,
+            'recording_link' => $request->recording_link,
+            'status'         => 'active',
         ]);
 
         return redirect()

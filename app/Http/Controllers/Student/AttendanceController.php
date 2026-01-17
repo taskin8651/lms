@@ -10,11 +10,19 @@ use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+    /**
+     * Student attendance list
+     */
     public function index(Request $request)
     {
         $student = auth()->user()->student;
 
-        // student ke batch_student IDs
+        // 🔐 Safety
+        if (! $student) {
+            abort(403);
+        }
+
+        // Student ke batch_student IDs
         $batchStudentIds = BatchStudent::where('student_id', $student->id)
             ->pluck('id');
 
@@ -22,13 +30,16 @@ class AttendanceController extends Controller
                 'batch_student.batch',
             ])
             ->whereIn('batch_student_id', $batchStudentIds)
-            ->orderBy('attendance_date', 'desc');
+            ->orderByDesc('attendance_date');
 
-        // 🔹 Filters
+        /* ================= FILTERS ================= */
+
+        // Date filter
         if ($request->filled('date')) {
             $query->whereDate('attendance_date', $request->date);
         }
 
+        // Status filter (present / absent)
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }

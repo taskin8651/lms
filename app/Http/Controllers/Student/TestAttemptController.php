@@ -13,11 +13,15 @@ use Illuminate\Support\Facades\DB;
 class TestAttemptController extends Controller
 {
     /**
-     * Available Tests for Student
+     * Student → Available Tests
      */
     public function index()
     {
         $student = auth()->user()->student;
+
+        if (! $student) {
+            abort(403);
+        }
 
         $batchIds = BatchStudent::where('student_id', $student->id)
             ->pluck('batch_id');
@@ -32,51 +36,55 @@ class TestAttemptController extends Controller
     }
 
     /**
-     * Start Test
+     * Start / Resume Test
      */
-  public function start(Test $test)
-{
-    $student = auth()->user()->student;
+    public function start(Test $test)
+    {
+        $student = auth()->user()->student;
 
-    $batchStudent = BatchStudent::where([
-        'student_id' => $student->id,
-        'batch_id'   => $test->batch_id,
-    ])->firstOrFail();
+        if (! $student) {
+            abort(403);
+        }
 
-    // Check existing in-progress attempt
-    $attempt = TestAttempt::where([
-        'test_id' => $test->id,
-        'batch_student_id' => $batchStudent->id,
-        'status' => 'in_progress',
-    ])->latest()->first();
+        // 🔒 Student enrolled check
+        $batchStudent = BatchStudent::where([
+            'student_id' => $student->id,
+            'batch_id'   => $test->batch_id,
+        ])->firstOrFail();
 
-    // ✅ If no attempt exists, create new
-    if (!$attempt) {
-        $attemptNo = TestAttempt::where([
+        // 🔁 Resume existing attempt (important)
+        $attempt = TestAttempt::where([
             'test_id' => $test->id,
             'batch_student_id' => $batchStudent->id,
-        ])->count() + 1;
-
-        $attempt = TestAttempt::create([
-            'test_id' => $test->id,
-            'batch_student_id' => $batchStudent->id,
-            'attempt_no' => $attemptNo,
-            'total_questions' => $test->questions()->count(),
             'status' => 'in_progress',
-            'started_at' => now(),
-        ]);
+        ])->latest()->first();
+
+        // 🆕 Create new attempt only if none exists
+        if (! $attempt) {
+
+            $attemptNo = TestAttempt::where([
+                'test_id' => $test->id,
+                'batch_student_id' => $batchStudent->id,
+            ])->count() + 1;
+
+            $attempt = TestAttempt::create([
+                'test_id' => $test->id,
+                'batch_student_id' => $batchStudent->id,
+                'attempt_no' => $attemptNo,
+                'total_questions' => $test->questions()->count(),
+                'status' => 'in_progress',
+                'started_at' => now(),
+            ]);
+        }
+
+        // ✅ SAME order every refresh (important for resume)
+        $questions = $test->questions()->orderBy('id')->get();
+
+        return view(
+            'student.tests.start',
+            compact('test', 'attempt', 'questions')
+        );
     }
-
-    // Random order only first time (optional improvement later)
-    $questions = $test->questions()->inRandomOrder()->get();
-
-    return view('student.tests.start', compact(
-        'test',
-        'attempt',
-        'questions'
-    ));
-}
-
 
     /**
      * Submit Test
@@ -85,11 +93,16 @@ class TestAttemptController extends Controller
     {
         $student = auth()->user()->student;
 
+        if (! $student) {
+            abort(403);
+        }
+
         $batchStudent = BatchStudent::where([
             'student_id' => $student->id,
             'batch_id'   => $test->batch_id,
         ])->firstOrFail();
 
+        // 🔒 Only active attempt can be submitted
         $attempt = TestAttempt::where([
             'test_id' => $test->id,
             'batch_student_id' => $batchStudent->id,
@@ -97,6 +110,9 @@ class TestAttemptController extends Controller
         ])->latest()->firstOrFail();
 
         DB::transaction(function () use ($request, $test, $attempt) {
+
+            // ❌ Prevent double submission
+            TestAnswer::where('test_attempt_id', $attempt->id)->delete();
 
             $correct = 0;
             $wrong = 0;
@@ -135,12 +151,12 @@ class TestAttemptController extends Controller
                 : 0;
 
             $attempt->update([
-                'attempted' => $attempted,
-                'correct' => $correct,
-                'wrong' => $wrong,
-                'score' => max($score, 0), // prevent negative total
-                'percentage' => $percentage,
-                'status' => 'completed', // ✅ ENUM SAFE
+                'attempted'    => $attempted,
+                'correct'      => $correct,
+                'wrong'        => $wrong,
+                'score'        => max($score, 0),
+                'percentage'   => $percentage,
+                'status'       => 'completed',
                 'submitted_at' => now(),
             ]);
         });
@@ -149,7 +165,4 @@ class TestAttemptController extends Controller
             ->route('student.tests')
             ->with('success', 'Test submitted successfully!');
     }
-
-   
-
 }

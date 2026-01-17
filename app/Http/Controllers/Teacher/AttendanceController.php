@@ -5,20 +5,24 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Batch;
-use Carbon\Carbon;
 use App\Models\Student;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-
 
 class AttendanceController extends Controller
 {
+    /* =========================
+     | Attendance Dashboard
+     ========================= */
     public function index(Request $request)
     {
         $teacher = auth()->user()->teacher;
 
-        /* =========================
-         | Attendance List
-         ========================= */
+        if (! $teacher) {
+            abort(403);
+        }
+
+        /* ================= Attendance List ================= */
         $attendanceQuery = Attendance::with([
                 'batch_student.batch',
                 'batch_student.student.user'
@@ -27,33 +31,27 @@ class AttendanceController extends Controller
                 $q->where('teacher_id', $teacher->id);
             });
 
-        // 🔹 Date filter
         if ($request->filled('date')) {
             $attendanceQuery->whereDate('attendance_date', $request->date);
         }
 
-        // 🔹 Status filter
         if ($request->filled('status')) {
             $attendanceQuery->where('status', $request->status);
         }
 
-        // 🔹 Student name filter
         if ($request->filled('student')) {
             $attendanceQuery->whereHas(
                 'batch_student.student.user',
-                function ($q) use ($request) {
-                    $q->where('name', 'like', '%' . $request->student . '%');
-                }
+                fn ($q) =>
+                    $q->where('name', 'like', '%' . $request->student . '%')
             );
         }
 
         $attendances = $attendanceQuery
-            ->orderBy('attendance_date', 'desc')
+            ->orderByDesc('attendance_date')
             ->paginate(20);
 
-        /* =========================
-         | Batch-wise Summary
-         ========================= */
+        /* ================= Batch Summary ================= */
         $batchSummary = Attendance::selectRaw('
                 batch_students.batch_id,
                 batches.name as batch_name,
@@ -63,13 +61,11 @@ class AttendanceController extends Controller
             ->join('batch_students', 'batch_students.id', '=', 'attendances.batch_student_id')
             ->join('batches', 'batches.id', '=', 'batch_students.batch_id')
             ->where('batches.teacher_id', $teacher->id)
-            ->when($request->filled('date'), function ($q) use ($request) {
-                $q->whereDate('attendances.attendance_date', $request->date);
-            })
+            ->when($request->filled('date'), fn ($q) =>
+                $q->whereDate('attendances.attendance_date', $request->date)
+            )
             ->groupBy('batch_students.batch_id', 'batches.name')
             ->get();
-
-           
 
         return view(
             'teacher.attendance.index',
@@ -77,59 +73,58 @@ class AttendanceController extends Controller
         );
     }
 
+    /* =========================
+     | Today Batch Attendance
+     ========================= */
     public function todayBatch(Batch $batch)
-{
-    $teacher = auth()->user()->teacher;
+    {
+        $teacher = auth()->user()->teacher;
 
-    // 🔒 Security
-    if ($batch->teacher_id !== $teacher->id) {
-        abort(403);
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
+            abort(403);
+        }
+
+        $today = Carbon::today();
+
+        $attendances = Attendance::with('batch_student.student.user')
+            ->whereDate('attendance_date', $today)
+            ->whereHas('batch_student', fn ($q) =>
+                $q->where('batch_id', $batch->id)
+            )
+            ->get();
+
+        $summary = [
+            'present' => $attendances->where('status', 'present')->count(),
+            'absent'  => $attendances->where('status', 'absent')->count(),
+        ];
+
+        return view(
+            'teacher.attendance.batch-today',
+            compact('batch', 'attendances', 'summary')
+        );
     }
 
-    $today = Carbon::today()->format('Y-m-d');
+    /* =========================
+     | Student Attendance History
+     ========================= */
+    public function studentHistory(Batch $batch, Student $student)
+    {
+        $teacher = auth()->user()->teacher;
 
-    // 🔹 Today attendance list (student-wise)
-    $attendances = Attendance::with([
-            'batch_student.student.user'
-        ])
-        ->whereDate('attendance_date', $today)
-        ->whereHas('batch_student', function ($q) use ($batch) {
-            $q->where('batch_id', $batch->id);
-        })
-        ->get();
+        if (! $teacher || (int)$batch->teacher_id !== (int)$teacher->id) {
+            abort(403);
+        }
 
-    // 🔹 Today summary
-    $summary = [
-        'present' => $attendances->where('status', 'present')->count(),
-        'absent'  => $attendances->where('status', 'absent')->count(),
-    ];
+        $attendances = Attendance::whereHas('batch_student', fn ($q) =>
+                $q->where('batch_id', $batch->id)
+                  ->where('student_id', $student->id)
+            )
+            ->orderByDesc('attendance_date')
+            ->get();
 
-    return view(
-        'teacher.attendance.batch-today',
-        compact('batch', 'attendances', 'summary')
-    );
-}
-
-
-public function studentHistory(Batch $batch, Student $student)
-{
-    $teacher = auth()->user()->teacher;
-
-    // 🔒 Security: teacher apna batch hi dekhe
-    if ($batch->teacher_id !== $teacher->id) {
-        abort(403);
+        return view(
+            'teacher.attendance.student-history',
+            compact('batch', 'student', 'attendances')
+        );
     }
-
-    $attendances = Attendance::whereHas('batch_student', function ($q) use ($batch, $student) {
-            $q->where('batch_id', $batch->id)
-              ->where('student_id', $student->id);
-        })
-        ->orderBy('attendance_date', 'desc')
-        ->get();
-
-    return view(
-        'teacher.attendance.student-history',
-        compact('batch', 'student', 'attendances')
-    );
-}
 }
