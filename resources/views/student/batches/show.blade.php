@@ -97,6 +97,25 @@
     </a>
 </div>
 
+<!-- Study Materials -->
+<div class="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition">
+
+    <h3 class="text-lg font-semibold text-gray-800 mb-2">
+        📘 Study Materials
+    </h3>
+
+    <p class="text-sm text-gray-500 mb-4">
+        Access chapter notes, PDFs & video lectures
+    </p>
+
+    <a href="{{ route('student.batches.materials', $batch) }}"
+       class="inline-flex items-center gap-1 text-sm text-indigo-600 font-medium hover:underline">
+        View Materials →
+    </a>
+
+</div>
+
+
 
 </div>
 

@@ -33,6 +33,7 @@ class StudyMaterial extends Model implements HasMedia
     ];
 
     protected $fillable = [
+        'batch_id',
         'chapter_id',
         'title',
         'description',
@@ -58,6 +59,12 @@ class StudyMaterial extends Model implements HasMedia
     {
         return $this->belongsTo(Chapter::class, 'chapter_id');
     }
+
+    public function batch()
+{
+    return $this->belongsTo(Batch::class);
+}
+
 
     public function getFileAttribute()
     {

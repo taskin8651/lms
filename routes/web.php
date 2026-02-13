@@ -4,6 +4,7 @@ use App\Http\Controllers\Teacher\BatchController;
 use App\Http\Controllers\Teacher\DashboardController;
 use App\Http\Controllers\Teacher\LiveClassController;
 use App\Http\Controllers\Teacher\TestController;
+use App\Http\Controllers\Teacher\StudyMaterialController;
 
 Route::redirect('/', '/login');
 Route::get('/home', function () {
@@ -316,6 +317,21 @@ Route::get(
             [LiveClassController::class, 'store']
         )->name('batches.live-classes.store');
 
+        Route::get(
+            '/batches/{batch}/materials',
+            [StudyMaterialController::class, 'index']
+        )->name('batches.materials');
+
+        Route::get(
+            '/batches/{batch}/materials/create',
+            [StudyMaterialController::class, 'create']
+        )->name('batches.materials.create');
+
+        Route::post(
+            '/batches/{batch}/materials',
+            [StudyMaterialController::class, 'store']
+        )->name('batches.materials.store');
+
 
     });
 
@@ -387,4 +403,18 @@ Route::middleware(['auth', 'student'])
             [\App\Http\Controllers\Student\TestResultController::class, 'attemptDetail']
         )->name('results.attempt');
        
+
+         Route::get(
+            '/batches/{batch}/materials',
+            [\App\Http\Controllers\Student\StudyMaterialController::class, 'index']
+        )->name('batches.materials');
+
+        Route::post('/materials/{material}/complete',
+            [\App\Http\Controllers\Student\StudyMaterialController::class, 'markComplete']
+        )->name('materials.complete');
+
+        Route::get('/materials/{id}/view',
+    [\App\Http\Controllers\Student\StudyMaterialController::class, 'secureView']
+)->name('material.secure');
+
     });

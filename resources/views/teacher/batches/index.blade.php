@@ -125,11 +125,12 @@
         🧪 Tests
     </a>
 
-    <a href="{{ route('teacher.batches.tests.results', $batch) }}"
-   class="flex items-center justify-center gap-1 px-3 py-2 rounded-lg
-          border border-purple-200 text-purple-700 hover:bg-purple-50 transition">
-    📊 Results
-</a>
+    {{-- Study Materials --}}
+    <a href="{{ route('teacher.batches.materials', $batch) }}"
+       class="flex items-center justify-center gap-1 px-3 py-2 rounded-lg
+              border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition">
+        📘 Materials
+    </a>
 
 </div>
 
